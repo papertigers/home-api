@@ -1,0 +1,27 @@
+[package]
+name = "home-api"
+version = "0.1.0"
+authors = ["Mike Zeller <mike@mikezeller.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dropshot = "0.3.0"
+futures = "0.3.8"
+futures-util = "0.3.8"
+http = "0.2.1"
+schemars = "0.7.6"
+serde = "1.0.117"
+slog = "2.5.2"
+sonor = "0.1.3"
+
+
+[dependencies.tokio]
+version = "0.2"
+features = ["macros"]
+
+[patch.crates-io]
+get_if_addrs = { git = "https://github.com/papertigers/get_if_addrs.git", branch = "illumos" }
+rupnp = { git = "https://github.com/papertigers/rupnp.git", branch = "tokio0.2" }
+sonor = { path = "../sonor" }
