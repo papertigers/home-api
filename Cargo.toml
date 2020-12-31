@@ -23,5 +23,4 @@ features = ["macros"]
 
 [patch.crates-io]
 get_if_addrs = { git = "https://github.com/papertigers/get_if_addrs.git", branch = "illumos" }
-rupnp = { git = "https://github.com/papertigers/rupnp.git", branch = "tokio0.2" }
 sonor = { path = "../sonor" }

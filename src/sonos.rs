@@ -24,7 +24,9 @@ async fn goodnight(speaker: &sonor::Speaker) -> Result<(), sonor::Error> {
     speaker.stop().await?;
     speaker.leave().await?;
     speaker.set_volume(5).await?;
-    speaker.clear_queue().await?;
+    // fails if the queue is already clear or in an unexpected state, so it's safe to ignore for
+    // now as we are about to replace it.
+    let _ = speaker.clear_queue().await;
     // TODO: make this a paramater.  For now hardcode it to the "Sleep" playlist.
     speaker
         .queue_next("file:///jffs/settings/savedqueues.rsq#23", "")
@@ -53,7 +55,10 @@ async fn group_rooms(
             .into_iter()
             .flat_map(|(_, v)| v)
             .filter(|i| {
-                if let Some(_) = rooms[1..].iter().position(|n| n.eq_ignore_ascii_case(i.name())) {
+                if let Some(_) = rooms[1..]
+                    .iter()
+                    .position(|n| n.eq_ignore_ascii_case(i.name()))
+                {
                     return true;
                 }
                 false
