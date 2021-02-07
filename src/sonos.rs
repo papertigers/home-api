@@ -1,6 +1,4 @@
-use dropshot::{
-    endpoint, ApiDescription, HttpError, HttpResponseOk, Path, RequestContext, TypedBody,
-};
+use dropshot::{endpoint, ApiDescription, HttpError, HttpResponseOk, RequestContext, TypedBody};
 use futures::stream::StreamExt;
 use futures_util::stream::FuturesUnordered;
 use schemars::JsonSchema;
@@ -10,20 +8,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Deserialize, JsonSchema)]
-struct SonosSleepArgs {
-    room: String,
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct SonosGroupArgs {
+struct SonosArgs {
     rooms: Vec<String>,
     volume: Option<u16>,
 }
 
 async fn goodnight(speaker: &sonor::Speaker) -> Result<(), sonor::Error> {
     speaker.stop().await?;
-    speaker.leave().await?;
-    speaker.set_volume(5).await?;
     // fails if the queue is already clear or in an unexpected state, so it's safe to ignore for
     // now as we are about to replace it.
     let _ = speaker.clear_queue().await;
@@ -41,11 +32,11 @@ async fn group_rooms(
     rctx: Arc<RequestContext>,
     rooms: &[String],
     volume: Option<u16>,
-) -> Result<(), sonor::Error> {
+) -> Result<Option<Speaker>, sonor::Error> {
     // Make sure we have at least one room passed in.
     let first = match rooms.first() {
         Some(c) => c,
-        None => return Ok(()),
+        None => return Ok(None),
     };
 
     if let Some(coordinator) = sonor::find(first, Duration::from_secs(3)).await? {
@@ -88,25 +79,28 @@ async fn group_rooms(
         for speaker in speakers {
             speaker.leave().await?;
             speaker.set_volume(volume).await?;
+            // XXX maybe expose the sonor internal join function so we don't duplicate the
+            // zone_group_state code above.
             let _ = speaker.join(first).await;
         }
-    };
 
-    info!(rctx.log, "joined rooms: {:?}", rooms);
-    Ok(())
+        info!(rctx.log, "joined rooms: {:?}", rooms);
+        return Ok(Some(coordinator));
+    };
+    Ok(None)
 }
 
 #[endpoint {
-    method = PUT,
-    path = "/sonos/sleep/{room}",
+    method = POST,
+    path = "/sonos/sleep",
 }]
 async fn sleep(
-    _rctx: Arc<RequestContext>,
-    path: Path<SonosSleepArgs>,
+    rctx: Arc<RequestContext>,
+    body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
-    let path_params = path.into_inner();
-    let roomname = path_params.room;
-    if let Some(speaker) = sonor::find(&roomname, Duration::from_secs(3))
+    let body = body_param.into_inner();
+    let context = Arc::clone(&rctx);
+    if let Some(speaker) = group_rooms(context, &body.rooms, body.volume)
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?
     {
@@ -114,9 +108,9 @@ async fn sleep(
             .await
             .map_err(|e| HttpError::for_unavail(None, format!("{}", e)))?;
     } else {
-        return Err(HttpError::for_not_found(
+        return Err(HttpError::for_bad_request(
             None,
-            format!("sonos zone {} not found", &roomname),
+            format!("verify sonos speakers: [{:?}]", &body.rooms),
         ));
     }
 
@@ -129,7 +123,7 @@ async fn sleep(
 }]
 async fn group(
     rctx: Arc<RequestContext>,
-    body_param: TypedBody<SonosGroupArgs>,
+    body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
     let body = body_param.into_inner();
     let context = Arc::clone(&rctx);
