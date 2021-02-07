@@ -24,6 +24,7 @@ async fn main() -> Result<(), String> {
     let mut server = HttpServer::new(
         &ConfigDropshot {
             bind_address: "0.0.0.0:80".parse().unwrap(),
+            request_body_max_bytes: 1024,
         },
         api,
         Arc::new(()),
