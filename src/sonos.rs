@@ -45,15 +45,7 @@ async fn group_rooms(
             .await?
             .into_iter()
             .flat_map(|(_, v)| v)
-            .filter(|i| {
-                if let Some(_) = rooms[1..]
-                    .iter()
-                    .position(|n| n.eq_ignore_ascii_case(i.name()))
-                {
-                    return true;
-                }
-                false
-            })
+            .filter(|i| rooms[1..].iter().any(|n| n.eq_ignore_ascii_case(i.name())))
             .map(|info| {
                 let url = info.location().parse();
                 async {
@@ -79,8 +71,6 @@ async fn group_rooms(
         for speaker in speakers {
             speaker.leave().await?;
             speaker.set_volume(volume).await?;
-            // XXX maybe expose the sonor internal join function so we don't duplicate the
-            // zone_group_state code above.
             let _ = speaker.join(first).await;
         }
 
