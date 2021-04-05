@@ -7,10 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dropshot = "0.4"
+dropshot = "0.5"
 futures = "0.3.8"
 futures-util = "0.3.8"
 http = "0.2.1"
+illumos-priv = "0.2.0"
 schemars = "0.8.0"
 serde = "1.0.117"
 slog = "2.7.0"

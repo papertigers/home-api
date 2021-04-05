@@ -1,3 +1,4 @@
+use crate::AppCtx;
 use dropshot::{endpoint, ApiDescription, HttpError, HttpResponseOk, RequestContext, TypedBody};
 use futures::stream::StreamExt;
 use futures_util::stream::FuturesUnordered;
@@ -29,7 +30,7 @@ async fn goodnight(speaker: &sonor::Speaker) -> Result<(), sonor::Error> {
 }
 
 async fn group_rooms(
-    rctx: Arc<RequestContext>,
+    rctx: Arc<RequestContext<AppCtx>>,
     rooms: &[String],
     volume: Option<u16>,
 ) -> Result<Option<Speaker>, sonor::Error> {
@@ -71,7 +72,14 @@ async fn group_rooms(
         for speaker in speakers {
             speaker.leave().await?;
             speaker.set_volume(volume).await?;
-            let _ = speaker.join(first).await;
+            if let Err(e) = speaker.join(first).await {
+                warn!(
+                    rctx.log,
+                    "failed to join {} to group: {}",
+                    speaker.name().await?,
+                    e
+                )
+            }
         }
 
         info!(rctx.log, "joined rooms: {:?}", rooms);
@@ -85,7 +93,7 @@ async fn group_rooms(
     path = "/sonos/sleep",
 }]
 async fn sleep(
-    rctx: Arc<RequestContext>,
+    rctx: Arc<RequestContext<AppCtx>>,
     body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
     let body = body_param.into_inner();
@@ -104,6 +112,7 @@ async fn sleep(
         ));
     }
 
+    info!(rctx.log, "sleep mode initiated for: {:?}", &body.rooms);
     Ok(HttpResponseOk(()))
 }
 
@@ -112,7 +121,7 @@ async fn sleep(
     path = "/sonos/group",
 }]
 async fn group(
-    rctx: Arc<RequestContext>,
+    rctx: Arc<RequestContext<AppCtx>>,
     body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
     let body = body_param.into_inner();
@@ -123,7 +132,7 @@ async fn group(
     Ok(HttpResponseOk(()))
 }
 
-pub fn mount(api: &mut ApiDescription) {
+pub fn mount(api: &mut ApiDescription<AppCtx>) {
     api.register(sleep).expect("failed to mount sleep");
     api.register(group).expect("failed to mount group");
 }
