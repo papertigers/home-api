@@ -1,0 +1,7 @@
+user_auth = [
+	"some token",
+]
+
+[shark]
+user = "user@email.com"
+password = "p@ssword"

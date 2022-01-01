@@ -12,9 +12,10 @@ use std::time::Duration;
 struct SonosArgs {
     rooms: Vec<String>,
     volume: Option<u16>,
+    sleep_timer: Option<u16>,
 }
 
-async fn goodnight(speaker: &sonor::Speaker) -> Result<(), sonor::Error> {
+async fn goodnight(speaker: &sonor::Speaker, sleep_timer: Option<u16>) -> Result<(), sonor::Error> {
     speaker.stop().await?;
     // fails if the queue is already clear or in an unexpected state, so it's safe to ignore for
     // now as we are about to replace it.
@@ -25,7 +26,9 @@ async fn goodnight(speaker: &sonor::Speaker) -> Result<(), sonor::Error> {
         .await?;
     speaker.set_repeat_mode(sonor::RepeatMode::All).await?;
     speaker.set_shuffle(true).await?;
-    speaker.set_sleep_timer(2 * 60 * 60).await?;
+    if let Some(t) = sleep_timer.map(|v| v.clamp(0, 2 * 60 * 60)) {
+        speaker.set_sleep_timer(t as u64).await?;
+    }
     speaker.play().await
 }
 
@@ -58,11 +61,7 @@ async fn group_rooms(
             .collect::<Vec<Result<Option<Speaker>, sonor::Error>>>()
             .await;
 
-        let speakers: Vec<Speaker> = find
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter_map(|s| s)
-            .collect();
+        let speakers: Vec<Speaker> = find.into_iter().filter_map(Result::ok).flatten().collect();
 
         let default_volume = coordinator.volume().await?;
         let volume = volume.unwrap_or(default_volume);
@@ -102,7 +101,7 @@ async fn sleep(
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?
     {
-        goodnight(&speaker)
+        goodnight(&speaker, body.sleep_timer)
             .await
             .map_err(|e| HttpError::for_unavail(None, format!("{}", e)))?;
     } else {

@@ -1,0 +1,26 @@
+[package]
+name = "homeapi"
+version = "0.1.0"
+authors = ["Mike Zeller <mike@mikezeller.net>"]
+edition = "2018"
+
+[dependencies]
+dropshot = "0.5"
+futures = "0.3.8"
+futures-util = "0.3.8"
+http = "0.2.1"
+illumos-priv = "0.2.0"
+schemars = "0.8.0"
+serde = "1.0.117"
+slog = "2.7.0"
+sonor = "1.1.0"
+shark= { path = "../shark" }
+toml = "0.5.8"
+getopts = "0.2.21"
+hyper = "0.14.16"
+anyhow = "1.0.52"
+
+[dependencies.tokio]
+version = "1.0"
+features = ["macros"]
+
