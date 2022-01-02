@@ -17,6 +17,9 @@ mod config;
 mod shark_endpoint;
 mod sonos_endpoint;
 
+const X_API_KEY: &str = "X-API-Key";
+
+// XXX we may wish to return some value or control things via ACL someday
 pub struct Auth;
 
 type AppCtx = Arc<App>;
@@ -26,14 +29,38 @@ pub struct App {
 }
 
 impl App {
-    async fn require_auth(&self, req: &Request<Body>) -> Result<Auth, HttpError> {
-        // TODO validate against user tokens
+    fn require_auth(&self, req: &Request<Body>) -> Result<Auth, HttpError> {
+        let token = match req.headers().get(X_API_KEY) {
+            Some(h) => match h.to_str() {
+                Ok(t) => Some(t),
+                Err(_) => None,
+            },
+            None => None,
+        };
+
+        if let Some(t) = token {
+            if self.auth_tokens.iter().any(|token| token == t.trim()) {
+                return Ok(Auth);
+            }
+        }
+
         Err(HttpError::for_client_error(
             None,
             StatusCode::UNAUTHORIZED,
-            "invalid Authorization header".to_string(),
+            "invalid x-api-key header".to_string(),
         ))
     }
+}
+
+fn drop_privs() -> anyhow::Result<()> {
+    let mut pset = PrivSet::new_basic()?;
+    pset.delset(Privilege::ProcFork)?;
+    pset.delset(Privilege::ProcExec)?;
+    pset.delset(Privilege::ProcInfo)?;
+    pset.delset(Privilege::ProcSession)?;
+    illumos_priv::setppriv(PrivOp::Set, PrivPtype::Permitted, &pset)?;
+    illumos_priv::setppriv(PrivOp::Set, PrivPtype::Limit, &pset)?;
+    Ok(())
 }
 
 #[tokio::main]
@@ -84,13 +111,7 @@ async fn main() -> anyhow::Result<()> {
     )
     .map_err(|error| anyhow!("failed to start server: {}", error))?;
 
-    let mut pset = PrivSet::new_basic().unwrap();
-    pset.delset(Privilege::ProcFork).unwrap();
-    pset.delset(Privilege::ProcExec).unwrap();
-    pset.delset(Privilege::ProcInfo).unwrap();
-    pset.delset(Privilege::ProcSession).unwrap();
-    illumos_priv::setppriv(PrivOp::Set, PrivPtype::Permitted, &pset).unwrap();
-    illumos_priv::setppriv(PrivOp::Set, PrivPtype::Limit, &pset).unwrap();
+    drop_privs().map_err(|e| anyhow!("Failed to drop privs: {}", e))?;
 
     tokio::task::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60 * 60 * 12));

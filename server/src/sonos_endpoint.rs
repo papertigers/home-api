@@ -95,8 +95,12 @@ async fn sleep(
     rctx: Arc<RequestContext<AppCtx>>,
     body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
+    let app = rctx.context();
+    let req = rctx.request.lock().await;
+    let _ = app.require_auth(&req)?;
     let body = body_param.into_inner();
     let context = Arc::clone(&rctx);
+
     if let Some(speaker) = group_rooms(context, &body.rooms, body.volume)
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?
@@ -123,8 +127,12 @@ async fn group(
     rctx: Arc<RequestContext<AppCtx>>,
     body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
+    let app = rctx.context();
+    let req = rctx.request.lock().await;
+    let _ = app.require_auth(&req)?;
     let body = body_param.into_inner();
     let context = Arc::clone(&rctx);
+
     group_rooms(context, &body.rooms, body.volume)
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?;

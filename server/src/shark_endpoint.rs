@@ -20,6 +20,9 @@ async fn get_devices(
     rctx: Arc<RequestContext<AppCtx>>,
 ) -> Result<HttpResponseOk<Vec<SharkDevice>>, HttpError> {
     let app = rctx.context();
+    let req = rctx.request.lock().await;
+    let _ = app.require_auth(&req)?;
+
     let shark = app.shark.read().await;
     match shark.get_devices().await {
         Ok(devices) => Ok(HttpResponseOk(devices)),
@@ -39,6 +42,8 @@ async fn start(
     path_params: Path<ActionPathParam>,
 ) -> Result<HttpResponseAccepted<()>, HttpError> {
     let app = rctx.context();
+    let req = rctx.request.lock().await;
+    let _ = app.require_auth(&req)?;
     let shark = app.shark.read().await;
     let dsn = path_params.into_inner().dsn;
 
@@ -60,6 +65,8 @@ async fn stop(
     path_params: Path<ActionPathParam>,
 ) -> Result<HttpResponseAccepted<()>, HttpError> {
     let app = rctx.context();
+    let req = rctx.request.lock().await;
+    let _ = app.require_auth(&req)?;
     let shark = app.shark.read().await;
     let dsn = path_params.into_inner().dsn;
 
@@ -81,6 +88,8 @@ async fn r#return(
     path_params: Path<ActionPathParam>,
 ) -> Result<HttpResponseAccepted<()>, HttpError> {
     let app = rctx.context();
+    let req = rctx.request.lock().await;
+    let _ = app.require_auth(&req)?;
     let shark = app.shark.read().await;
     let dsn = path_params.into_inner().dsn;
 

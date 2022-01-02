@@ -132,7 +132,7 @@ impl SharkClient {
         )?;
 
         let res = self.ayla.execute(req).await?;
-        dbg!(res);
+        let _ = get_api_response(res).await?;
         Ok(())
     }
 
