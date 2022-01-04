@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
+use std::net::IpAddr;
 use std::path::Path;
 
 #[derive(Deserialize)]
@@ -13,6 +14,8 @@ pub struct SharkAuth {
 pub struct Config {
     pub user_auth: Vec<String>,
     pub shark: SharkAuth,
+    pub host: Option<IpAddr>,
+    pub port: Option<u16>,
 }
 
 impl Config {

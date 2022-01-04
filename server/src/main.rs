@@ -5,6 +5,7 @@ use dropshot::{
 use hyper::{Body, Request, StatusCode};
 use illumos_priv::{PrivOp, PrivPtype, PrivSet, Privilege};
 use shark::SharkClient;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -79,6 +80,10 @@ async fn main() -> anyhow::Result<()> {
     let config = config::Config::from_file(matches.opt_str("c").unwrap())
         .map_err(|e| anyhow!("Failed to parse config file: {}", e))?;
 
+    let host = config.host.unwrap_or("127.0.0.1".parse().unwrap());
+    let port = config.port.unwrap_or(8080);
+    let sa = SocketAddr::new(host, port);
+
     let shark = SharkClient::builder(&config.shark.user, &config.shark.password)
         .build()
         .await
@@ -102,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
 
     let server = HttpServerStarter::new(
         &ConfigDropshot {
-            bind_address: "0.0.0.0:80".parse().unwrap(),
+            bind_address: sa,
             request_body_max_bytes: 1024,
         },
         api,

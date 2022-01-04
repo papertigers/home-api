@@ -1,6 +1,6 @@
 use crate::ayla::RequestType;
 use crate::region::Region;
-use reqwest::{Method, Response, StatusCode};
+use reqwest::{Method, Response};
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
@@ -132,7 +132,7 @@ impl SharkClient {
         )?;
 
         let res = self.ayla.execute(req).await?;
-        let _ = get_api_response(res).await?;
+        let _ = get_api_response::<serde_json::Value>(res).await?;
         Ok(())
     }
 
@@ -154,8 +154,12 @@ async fn get_api_response<T>(r: Response) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    match r.status() {
-        StatusCode::OK => Ok(r.json::<T>().await?),
-        sc => Err(error::SharkError::ApiError(sc, r.text().await.unwrap())),
+    if !r.status().is_success() {
+        return Err(error::SharkError::ApiError(
+            r.status(),
+            r.text().await.unwrap(),
+        ));
     }
+
+    Ok(r.json::<T>().await?)
 }
