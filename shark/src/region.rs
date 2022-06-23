@@ -7,7 +7,7 @@ pub enum Region {
 impl Region {
     pub(crate) fn user_url(&self) -> &'static str {
         match *self {
-            Self::Us => "https://user-field.aylanetworks.com",
+            Self::Us => "https://user-field-39a9391a.aylanetworks.com",
             Self::Eu => "https://user-field-eu.aylanetworks.com",
         }
     }
