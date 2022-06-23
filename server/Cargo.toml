@@ -5,7 +5,7 @@ authors = ["Mike Zeller <mike@mikezeller.net>"]
 edition = "2018"
 
 [dependencies]
-dropshot = "0.5"
+dropshot = "0.7"
 futures = "0.3.8"
 futures-util = "0.3.8"
 http = "0.2.1"
