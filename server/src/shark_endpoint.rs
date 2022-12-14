@@ -102,10 +102,23 @@ async fn r#return(
     }
 }
 
+// #[endpoint {
+//     method = PUT,
+//     path = "/shark/devices/{dsn}/example",
+// }]
+// async fn example(
+//     rctx: Arc<RequestContext<Arc<String>>>,
+//     _path_params: Path<ActionPathParam>,
+// ) -> Result<HttpResponseAccepted<()>, HttpError> {
+//     let app = rctx.context();
+//     todo!()
+// }
+
 pub fn mount(api: &mut ApiDescription<AppCtx>) {
     api.register(get_devices)
         .expect("failed to register get_devices");
     api.register(start).expect("failed to register start");
     api.register(stop).expect("failed to register stop");
     api.register(r#return).expect("failed to register return");
+    // api.register(example).expect("failed to register return");
 }
