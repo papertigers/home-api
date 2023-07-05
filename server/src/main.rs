@@ -1,8 +1,9 @@
 use anyhow::anyhow;
 use dropshot::{
-    ApiDescription, ConfigDropshot, ConfigLogging, ConfigLoggingLevel, HttpError, HttpServerStarter,
+    ApiDescription, ConfigDropshot, ConfigLogging, ConfigLoggingLevel, HttpError,
+    HttpServerStarter, RequestInfo,
 };
-use hyper::{Body, Request, StatusCode};
+use hyper::StatusCode;
 use illumos_priv::{PrivOp, PrivPtype, PrivSet, Privilege};
 use shark::SharkClient;
 use std::net::SocketAddr;
@@ -30,7 +31,7 @@ pub struct App {
 }
 
 impl App {
-    fn require_auth(&self, req: &Request<Body>) -> Result<Auth, HttpError> {
+    fn require_auth(&self, req: &RequestInfo) -> Result<Auth, HttpError> {
         let token = match req.headers().get(X_API_KEY) {
             Some(h) => match h.to_str() {
                 Ok(t) => Some(t),

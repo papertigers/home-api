@@ -8,7 +8,6 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use sonor::Playlist;
 use sonor::{rupnp::Device, Speaker};
-use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Deserialize, JsonSchema)]
@@ -64,7 +63,7 @@ async fn queue_playlist(
 }
 
 async fn group_rooms(
-    rctx: Arc<RequestContext<AppCtx>>,
+    rctx: &RequestContext<AppCtx>,
     rooms: &[String],
     volume: Option<u16>,
 ) -> Result<Option<Speaker>, sonor::Error> {
@@ -123,16 +122,15 @@ async fn group_rooms(
     path = "/sonos/sleep",
 }]
 async fn sleep(
-    rctx: Arc<RequestContext<AppCtx>>,
+    rctx: RequestContext<AppCtx>,
     body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
     let app = rctx.context();
-    let req = rctx.request.lock().await;
+    let req = &rctx.request;
     let _ = app.require_auth(&req)?;
     let body = body_param.into_inner();
-    let context = Arc::clone(&rctx);
 
-    if let Some(speaker) = group_rooms(context, &body.rooms, body.volume)
+    if let Some(speaker) = group_rooms(&rctx, &body.rooms, body.volume)
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?
     {
@@ -154,6 +152,7 @@ async fn sleep(
 struct PlaylistQueryArgs {
     shuffle: Option<bool>,
     repeat: Option<bool>,
+    sleep_timer: Option<u16>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -168,21 +167,20 @@ struct PlaylistArgs {
     path = "/sonos/playlist",
 }]
 async fn play_playlist(
-    rctx: Arc<RequestContext<AppCtx>>,
+    rctx: RequestContext<AppCtx>,
     query: Query<PlaylistQueryArgs>,
     body_param: TypedBody<PlaylistArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
     let app = rctx.context();
-    let req = rctx.request.lock().await;
+    let req = &rctx.request;
     let _ = app.require_auth(&req)?;
     let body = body_param.into_inner();
-    let context = Arc::clone(&rctx);
     let query = query.into_inner();
 
     let shuffle = query.shuffle.unwrap_or(false);
     let repeat = query.repeat.unwrap_or(false);
 
-    let coordinator = match group_rooms(context, &body.rooms, body.volume)
+    let coordinator = match group_rooms(&rctx, &body.rooms, body.volume)
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?
     {
@@ -210,7 +208,18 @@ async fn play_playlist(
 
     queue_playlist(&coordinator, playlist, shuffle, repeat)
         .await
-        .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?;
+        .map_err(|e| {
+            // XXX Try and get more info about why this fails
+            error!(&rctx.log, "sonos request failed: {:?}", e);
+            HttpError::for_internal_error(format!("failed sonos request: {}", e))
+        })?;
+
+    if let Some(t) = query.sleep_timer.map(|v| v.clamp(0, 2 * 60 * 60)) {
+        coordinator.set_sleep_timer(t as u64).await.map_err(|e| {
+            error!(&rctx.log, "sonos request failed: {:?}", e);
+            HttpError::for_internal_error(format!("failed sonos request: {}", e))
+        })?;
+    }
 
     Ok(HttpResponseOk(()))
 }
@@ -220,16 +229,15 @@ async fn play_playlist(
     path = "/sonos/group",
 }]
 async fn group(
-    rctx: Arc<RequestContext<AppCtx>>,
+    rctx: RequestContext<AppCtx>,
     body_param: TypedBody<SonosArgs>,
 ) -> Result<HttpResponseOk<()>, HttpError> {
     let app = rctx.context();
-    let req = rctx.request.lock().await;
+    let req = &rctx.request;
     let _ = app.require_auth(&req)?;
     let body = body_param.into_inner();
-    let context = Arc::clone(&rctx);
 
-    group_rooms(context, &body.rooms, body.volume)
+    group_rooms(&rctx, &body.rooms, body.volume)
         .await
         .map_err(|e| HttpError::for_internal_error(format!("failed sonos request: {}", e)))?;
     Ok(HttpResponseOk(()))
