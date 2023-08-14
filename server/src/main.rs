@@ -1,8 +1,9 @@
 use anyhow::anyhow;
 use dropshot::{
-    ApiDescription, ConfigDropshot, ConfigLogging, ConfigLoggingLevel, HttpError, HttpServerStarter,
+    ApiDescription, ConfigDropshot, ConfigLogging, ConfigLoggingLevel, HttpError,
+    HttpServerStarter, RequestInfo,
 };
-use hyper::{Body, Request, StatusCode};
+use hyper::StatusCode;
 use illumos_priv::{PrivOp, PrivPtype, PrivSet, Privilege};
 use shark::SharkClient;
 use std::net::SocketAddr;
@@ -30,7 +31,7 @@ pub struct App {
 }
 
 impl App {
-    fn require_auth(&self, req: &Request<Body>) -> Result<Auth, HttpError> {
+    fn require_auth(&self, req: &RequestInfo) -> Result<Auth, HttpError> {
         let token = match req.headers().get(X_API_KEY) {
             Some(h) => match h.to_str() {
                 Ok(t) => Some(t),
@@ -80,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
     let config = config::Config::from_file(matches.opt_str("c").unwrap())
         .map_err(|e| anyhow!("Failed to parse config file: {}", e))?;
 
-    let host = config.host.unwrap_or("127.0.0.1".parse().unwrap());
+    let host = config.host.unwrap_or_else(|| "127.0.0.1".parse().unwrap());
     let port = config.port.unwrap_or(8080);
     let sa = SocketAddr::new(host, port);
 
@@ -109,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
         &ConfigDropshot {
             bind_address: sa,
             request_body_max_bytes: 1024,
+            tls: None,
         },
         api,
         appctx,

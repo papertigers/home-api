@@ -4,6 +4,9 @@ members = [
 	"server",
 ]
 
+[workspace.dependencies]
+dropshot = "0.9"
+
 [patch.crates-io]
 get_if_addrs = { git = "https://github.com/papertigers/get_if_addrs.git", branch = "illumos" }
 sonor = { path = "../sonor" }
